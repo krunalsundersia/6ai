@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import uuid
+from functools import wraps
 from flask import Flask, request, Response, jsonify, render_template, session, url_for, redirect
 from flask_cors import CORS
 import requests
@@ -15,35 +16,47 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
-# It is CRITICAL that SESSION_SECRET is set as an environment variable on Vercel
-# If it's not set, it defaults to 'dev-secret-key-change-in-production', which is BAD
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production") 
 
 # Configuration
 app.config.update(
     SECRET_KEY=os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production"),
     GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
     GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
 )
-
-# NOTE for Vercel: If you are using a proxy, you might need to set 
-# a reverse proxy fix for correct url_for generation:
-# from werkzeug.middleware.proxy_fix import ProxyFix
-# app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1)
 
 CORS(app)
 
 # Initialize OAuth
 oauth = OAuth(app)
 
+# Check required environment variables
+required_env_vars = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "SESSION_SECRET"]
+missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
+
+if missing_vars:
+    logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
+    logger.warning("Authentication may not work properly")
+
 # OAuth Registrations
-google = oauth.register(
-    name='google',
-    client_id=app.config["GOOGLE_CLIENT_ID"],
-    client_secret=app.config["GOOGLE_CLIENT_SECRET"],
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'},
-)
+try:
+    google = oauth.register(
+        name='google',
+        client_id=app.config["GOOGLE_CLIENT_ID"],
+        client_secret=app.config["GOOGLE_CLIENT_SECRET"],
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={
+            'scope': 'openid email profile',
+            'prompt': 'select_account'
+        },
+        authorize_params={'access_type': 'online'},
+    )
+    logger.info("Google OAuth client registered successfully")
+except Exception as e:
+    logger.error(f"OAuth registration failed: {str(e)}")
+    google = None
 
 # Token management
 TOKEN_LIMIT = 300000
@@ -58,7 +71,7 @@ def count_tokens(text):
 # Initialize OpenRouter API key
 KEY = os.getenv("OPENROUTER_API_KEY")
 
-# AI Models configuration (omitted for brevity, assume correct)
+# AI Models configuration
 MODELS = {
     "logic": {"name": "Logic AI", "description": "analytical, structured, step-by-step"},
     "creative": {"name": "Creative AI", "description": "poetic, metaphorical, emotional"},
@@ -75,11 +88,16 @@ SYSTEM_PROMPTS = {
     "humorous": "You are Humorous AI — witty, lighthearted, engaging. Deliver responses with humor, clever analogies, and a playful tone while remaining relevant and informative."
 }
 
+# Authentication decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user'):
+            return jsonify(error="Authentication required. Please log in first."), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
-# ----------------------------------------------------------------------
-# 🔑 THE CRITICAL FIX IS APPLIED HERE 🔑
-# ----------------------------------------------------------------------
-
+# Routes
 @app.route('/')
 def index():
     user = session.get('user')
@@ -88,57 +106,90 @@ def index():
 @app.route('/login/google')
 def google_login():
     try:
-        google = oauth.create_client('google')
-        # Define the exact redirect URI to be sent to Google
+        # Check if OAuth is properly configured
+        if not app.config.get("GOOGLE_CLIENT_ID") or not app.config.get("GOOGLE_CLIENT_SECRET"):
+            logger.error("Google OAuth not configured - missing client ID or secret")
+            return render_template('error.html', error="Authentication not configured. Please contact administrator."), 500
+            
+        google_client = oauth.create_client('google')
+        if not google_client:
+            logger.error("Failed to create Google OAuth client")
+            return render_template('error.html', error="Authentication service unavailable."), 500
+            
         redirect_uri = url_for('google_authorize', _external=True)
-        # Pass the exact URI to the authorization request
-        return google.authorize_redirect(redirect_uri)
+        logger.info(f"Initiating Google OAuth flow with redirect: {redirect_uri}")
+        return google_client.authorize_redirect(redirect_uri)
+        
     except Exception as e:
-        logger.error(f"Google login error: {str(e)}")
-        return "Authentication error during redirect.", 500
+        logger.error(f"Google login initialization error: {str(e)}")
+        return render_template('error.html', error=f"Authentication error: {str(e)}"), 500
 
 @app.route('/login/google/authorize')
 def google_authorize():
     try:
-        google = oauth.create_client('google')
+        google_client = oauth.create_client('google')
+        if not google_client:
+            return render_template('error.html', error="Authentication client error"), 500
+            
+        # Get access token
+        token = google_client.authorize_access_token()
+        if not token:
+            logger.error("No access token received from Google")
+            return render_template('error.html', error="Failed to get access token from Google"), 400
+            
+        logger.info("Successfully obtained access token from Google")
         
-        # Define the exact redirect URI for the token exchange validation
-        redirect_uri = url_for('google_authorize', _external=True)
-        
-        # Pass the exact URI to the access token authorization call. 
-        # This prevents the "Authentication failed" error from token mismatch.
-        token = google.authorize_access_token(redirect_uri=redirect_uri)
-        
-        resp = google.get('userinfo')
-        resp.raise_for_status() # Raise an exception for bad status codes
+        # Get user info
+        resp = google_client.get('userinfo')
+        if resp.status != 200:
+            logger.error(f"Failed to get user info from Google: {resp.status}")
+            return render_template('error.html', error="Failed to get user information from Google"), 400
+            
         user_info = resp.json()
+        logger.info(f"Received user info: {user_info.get('email')}")
         
+        # Validate required user info
+        if not user_info.get('email'):
+            logger.error("Email not provided by Google in user info")
+            return render_template('error.html', error="Email not provided by Google"), 400
+            
+        # Store user in session
         session['user'] = {
-            'name': user_info.get('name'),
+            'name': user_info.get('name', ''),
             'email': user_info.get('email'),
-            'picture': user_info.get('picture'),
+            'picture': user_info.get('picture', ''),
             'provider': 'google'
         }
         
-        logger.info(f"User logged in: {user_info.get('email')}")
+        # Set session as permanent
+        session.permanent = True
+        
+        logger.info(f"User successfully logged in: {user_info.get('email')}")
         return redirect(url_for('index'))
     
     except Exception as e:
-        # Check Vercel logs for the specific error details captured by {str(e)}
-        logger.error(f"Google auth error in token exchange: {str(e)}")
-        return "Authentication failed. Please check server logs for details.", 500
-
-# ----------------------------------------------------------------------
-# END OF FIX
-# ----------------------------------------------------------------------
+        logger.error(f"Google authorization error: {str(e)}")
+        return render_template('error.html', error=f"Authentication failed: {str(e)}"), 400
 
 @app.route('/logout')
 def logout():
+    user_email = session.get('user', {}).get('email', 'Unknown')
     session.pop('user', None)
+    session.clear()
+    logger.info(f"User logged out: {user_email}")
     return redirect(url_for('index'))
 
-# Remaining functions (omitted for brevity, assume correct)
+@app.route('/auth/status')
+def auth_status():
+    """Check authentication status"""
+    return jsonify({
+        'authenticated': bool(session.get('user')),
+        'user': session.get('user'),
+        'oauth_configured': bool(app.config.get("GOOGLE_CLIENT_ID") and app.config.get("GOOGLE_CLIENT_SECRET")),
+        'session_secret_set': bool(app.config.get("SECRET_KEY")),
+    })
 
+# File processing
 def extract_text_from_pdf(file_content):
     try:
         pdf_file = BytesIO(file_content)
@@ -151,6 +202,7 @@ def extract_text_from_pdf(file_content):
         logger.error(f"PDF extraction error: {str(e)}")
         return None
 
+# AI Generation using direct HTTP requests
 def generate(bot_name: str, system: str, user: str, file_contents: list = None):
     global tokens_used
     if not KEY:
@@ -163,14 +215,19 @@ def generate(bot_name: str, system: str, user: str, file_contents: list = None):
             file_context = "\n\n".join(file_contents)
             full_user_prompt = f"{user}\n\nAttached files content:\n{file_context}"
         
-        # Check if user is logged in
-        if not session.get('user'):
-            yield f"data: {json.dumps({'bot': bot_name, 'error': 'Please login first'})}\n\n"
+        # Check token limit
+        if tokens_used >= TOKEN_LIMIT:
+            yield f"data: {json.dumps({'bot': bot_name, 'error': f'Token limit reached ({tokens_used}/{TOKEN_LIMIT})'})}\n\n"
             return
         
         # Approximate token counting
         system_tokens = count_tokens(system)
         user_tokens = count_tokens(full_user_prompt)
+        
+        if tokens_used + system_tokens + user_tokens > TOKEN_LIMIT:
+            yield f"data: {json.dumps({'bot': bot_name, 'error': 'Prompt too long - would exceed token limit'})}\n\n"
+            return
+        
         tokens_used += system_tokens + user_tokens
         
         payload = {
@@ -201,6 +258,7 @@ def generate(bot_name: str, system: str, user: str, file_contents: list = None):
         
         if response.status_code != 200:
             error_msg = f"API error: {response.status_code} - {response.text}"
+            logger.error(f"OpenRouter API error for {bot_name}: {error_msg}")
             yield f"data: {json.dumps({'bot': bot_name, 'error': error_msg})}\n\n"
             return
         
@@ -235,12 +293,9 @@ def generate(bot_name: str, system: str, user: str, file_contents: list = None):
         yield f"data: {json.dumps({'bot': bot_name, 'error': error_msg})}\n\n"
 
 @app.route("/chat", methods=["POST"])
+@login_required
 def chat():
     try:
-        # Check if user is logged in
-        if not session.get('user'):
-            return jsonify(error="Please login first"), 401
-        
         data = request.json or {}
         prompt = data.get("prompt", "").strip()
         fileUrls = data.get("fileUrls", [])
@@ -299,12 +354,9 @@ def chat():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route("/asklurk", methods=["POST"])
+@login_required
 def asklurk():
     try:
-        # Check if user is logged in
-        if not session.get('user'):
-            return jsonify(best="", error="Please login first"), 401
-        
         data = request.json or {}
         answers = data.get("answers", {})
         prompt = data.get("prompt", "")
@@ -314,6 +366,10 @@ def asklurk():
         
         if not KEY:
             return jsonify(best="", error="OpenRouter API key not configured"), 500
+        
+        # Check token limit
+        if tokens_used >= TOKEN_LIMIT:
+            return jsonify(best="", error=f"Token limit reached ({tokens_used}/{TOKEN_LIMIT})"), 429
         
         try:
             merged_content = f"Original question: {prompt}\n\n"
@@ -374,6 +430,7 @@ def asklurk():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload():
     """File upload endpoint - simplified for Vercel"""
     try:
@@ -398,6 +455,7 @@ def upload():
         return jsonify({'error': 'File upload not available in demo'}), 500
 
 @app.route("/tokens", methods=["GET"])
+@login_required
 def get_tokens():
     return jsonify({
         "tokens_used": tokens_used,
@@ -407,6 +465,7 @@ def get_tokens():
     })
 
 @app.route("/reset-tokens", methods=["POST"])
+@login_required
 def reset_tokens():
     global tokens_used
     tokens_used = 0
@@ -418,8 +477,18 @@ def health():
         "status": "ok",
         "api_key_configured": bool(KEY),
         "models_configured": len(MODELS),
-        "tokens_used": tokens_used
+        "tokens_used": tokens_used,
+        "oauth_configured": bool(app.config.get("GOOGLE_CLIENT_ID") and app.config.get("GOOGLE_CLIENT_SECRET")),
+        "user_count": 1 if session.get('user') else 0
     })
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    return jsonify(error="Authentication required"), 401
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify(error="Internal server error"), 500
 
 # Vercel compatibility
 def create_app():
@@ -427,4 +496,10 @@ def create_app():
 
 # For local development
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Check if we're in development mode
+    if os.environ.get('FLASK_ENV') == 'development':
+        app.config['SESSION_COOKIE_SECURE'] = False
+        app.config['OAUTH2_REFRESH_TOKEN_GENERATOR'] = True
+    
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
