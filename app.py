@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
+# It is CRITICAL that SESSION_SECRET is set as an environment variable on Vercel
+# If it's not set, it defaults to 'dev-secret-key-change-in-production', which is BAD
+app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production") 
 
 # Configuration
 app.config.update(
@@ -23,6 +25,11 @@ app.config.update(
     GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
     GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
 )
+
+# NOTE for Vercel: If you are using a proxy, you might need to set 
+# a reverse proxy fix for correct url_for generation:
+# from werkzeug.middleware.proxy_fix import ProxyFix
+# app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1)
 
 CORS(app)
 
@@ -51,7 +58,7 @@ def count_tokens(text):
 # Initialize OpenRouter API key
 KEY = os.getenv("OPENROUTER_API_KEY")
 
-# AI Models configuration
+# AI Models configuration (omitted for brevity, assume correct)
 MODELS = {
     "logic": {"name": "Logic AI", "description": "analytical, structured, step-by-step"},
     "creative": {"name": "Creative AI", "description": "poetic, metaphorical, emotional"},
@@ -68,7 +75,11 @@ SYSTEM_PROMPTS = {
     "humorous": "You are Humorous AI — witty, lighthearted, engaging. Deliver responses with humor, clever analogies, and a playful tone while remaining relevant and informative."
 }
 
-# Routes
+
+# ----------------------------------------------------------------------
+# 🔑 THE CRITICAL FIX IS APPLIED HERE 🔑
+# ----------------------------------------------------------------------
+
 @app.route('/')
 def index():
     user = session.get('user')
@@ -78,18 +89,28 @@ def index():
 def google_login():
     try:
         google = oauth.create_client('google')
+        # Define the exact redirect URI to be sent to Google
         redirect_uri = url_for('google_authorize', _external=True)
+        # Pass the exact URI to the authorization request
         return google.authorize_redirect(redirect_uri)
     except Exception as e:
         logger.error(f"Google login error: {str(e)}")
-        return "Authentication error", 500
+        return "Authentication error during redirect.", 500
 
 @app.route('/login/google/authorize')
 def google_authorize():
     try:
         google = oauth.create_client('google')
-        token = google.authorize_access_token()
+        
+        # Define the exact redirect URI for the token exchange validation
+        redirect_uri = url_for('google_authorize', _external=True)
+        
+        # Pass the exact URI to the access token authorization call. 
+        # This prevents the "Authentication failed" error from token mismatch.
+        token = google.authorize_access_token(redirect_uri=redirect_uri)
+        
         resp = google.get('userinfo')
+        resp.raise_for_status() # Raise an exception for bad status codes
         user_info = resp.json()
         
         session['user'] = {
@@ -103,15 +124,21 @@ def google_authorize():
         return redirect(url_for('index'))
     
     except Exception as e:
-        logger.error(f"Google auth error: {str(e)}")
-        return "Authentication failed. Please try again."
+        # Check Vercel logs for the specific error details captured by {str(e)}
+        logger.error(f"Google auth error in token exchange: {str(e)}")
+        return "Authentication failed. Please check server logs for details.", 500
+
+# ----------------------------------------------------------------------
+# END OF FIX
+# ----------------------------------------------------------------------
 
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
-# File processing
+# Remaining functions (omitted for brevity, assume correct)
+
 def extract_text_from_pdf(file_content):
     try:
         pdf_file = BytesIO(file_content)
@@ -124,7 +151,6 @@ def extract_text_from_pdf(file_content):
         logger.error(f"PDF extraction error: {str(e)}")
         return None
 
-# AI Generation using direct HTTP requests
 def generate(bot_name: str, system: str, user: str, file_contents: list = None):
     global tokens_used
     if not KEY:
