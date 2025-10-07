@@ -73,8 +73,7 @@
             <div id="file-chips" class="file-chips"></div>
 
             <div class="input-bar">
-                <input type="file" id="file-input" multiple accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;">
-                <button id="attach-btn" class="attach-btn" title="Add file or picture"><i class="fas fa-paperclip"></i></button>
+             
                 <textarea id="prompt-input" placeholder="Type your next thought..." maxlength="1000"></textarea>
                 <button id="ask-btn" class="btn-send"><i class="fas fa-paper-plane"></i></button>
             </div>
@@ -306,31 +305,7 @@
         }
 
         /* ---------- FILE UPLOAD ---------- */
-        attachBtn.onclick = () => fileInput.click();
-        fileInput.onchange = (e) => {
-            const files = Array.from(e.target.files);
-            selectedFiles.push(...files);
-            renderFileChips();
-            fileInput.value = '';
-        };
-        async function uploadFiles() {
-            if (!selectedFiles.length) return [];
-            try {
-                const fd = new FormData();
-                selectedFiles.forEach(f => fd.append('files', f));
-                const res = await fetch('/upload', {
-                    method: 'POST',
-                    body: fd
-                });
-                if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
-                const data = await res.json();
-                return data.urls || [];
-            } catch (err) {
-                console.error('Upload error:', err);
-                return [];
-            }
-        }
-
+    
         /* ---------- STREAMING ---------- */
         async function streamResponses(prompt, responseGroup) {
             asklurkUsedThisTurn = false;
@@ -503,3 +478,4 @@
     </script>
 </body>
 </html>
+
