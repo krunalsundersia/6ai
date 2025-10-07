@@ -8,7 +8,6 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 import tiktoken
-import PyPDF2
 from io import BytesIO
 
 # Load environment variables
@@ -77,45 +76,6 @@ def extract_text_from_pdf(file_content):
         logger.error(f"Error extracting text from PDF: {str(e)}")
         return None
 
-def process_uploaded_files(files):
-    """Process uploaded files and extract text content"""
-    file_contents = []
-    
-    for file in files:
-        try:
-            file_content = file.read()
-            filename = file.filename.lower()
-            
-            if filename.endswith('.pdf'):
-                # Extract text from PDF
-                text_content = extract_text_from_pdf(file_content)
-                if text_content:
-                    file_contents.append(f"PDF Content from '{file.filename}':\n{text_content}\n")
-                else:
-                    file_contents.append(f"PDF file '{file.filename}' (could not extract text)")
-            
-            elif filename.endswith(('.txt', '.doc', '.docx')):
-                # For text files, read the content directly
-                try:
-                    if filename.endswith('.txt'):
-                        text_content = file_content.decode('utf-8')
-                        file_contents.append(f"Text Content from '{file.filename}':\n{text_content}\n")
-                    else:
-                        file_contents.append(f"Document file '{file.filename}' (content processing not implemented)")
-                except:
-                    file_contents.append(f"Document file '{file.filename}' (could not read content)")
-            
-            elif filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                file_contents.append(f"Image file '{file.filename}'")
-            
-            else:
-                file_contents.append(f"File '{file.filename}'")
-                
-        except Exception as e:
-            logger.error(f"Error processing file {file.filename}: {str(e)}")
-            file_contents.append(f"File '{file.filename}' (error processing)")
-    
-    return file_contents
 
 def generate(bot_name: str, system: str, user: str, file_contents: list = None):
     """Generate AI response for a specific bot using OpenRouter"""
@@ -392,3 +352,4 @@ if __name__ == '__main__':
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
