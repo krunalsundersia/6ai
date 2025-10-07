@@ -252,33 +252,7 @@ def chat():
         if not prompt and not fileUrls:
             return jsonify(error="Empty prompt and no files provided"), 400
         
-        # Process uploaded files
-        file_contents = []
-        if fileUrls:
-            for file_url in fileUrls:
-                try:
-                    file_path = file_url.replace('/static/uploads/', '')
-                    full_path = os.path.join(UPLOAD_FOLDER, file_path)
-                    
-                    if os.path.exists(full_path):
-                        with open(full_path, 'rb') as f:
-                            file_content = f.read()
-                        
-                        filename = file_path.lower()
-                        if filename.endswith('.pdf'):
-                            text_content = extract_text_from_pdf(file_content)
-                            if text_content:
-                                file_contents.append(f"PDF Content from '{file_path}':\n{text_content}\n")
-                        elif filename.endswith('.txt'):
-                            text_content = file_content.decode('utf-8')
-                            file_contents.append(f"Text Content from '{file_path}':\n{text_content}\n")
-                        else:
-                            file_contents.append(f"File '{file_path}'")
-                            
-                except Exception as e:
-                    logger.error(f"Error processing file {file_url}: {str(e)}")
-                    file_contents.append(f"File '{file_url}' (error processing)")
-
+      
         def event_stream():
             generators = {}
             for key in MODELS.keys():
@@ -336,6 +310,7 @@ if __name__ == '__main__':
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
 
