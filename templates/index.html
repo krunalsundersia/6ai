@@ -6,51 +6,20 @@
     <title>Pentad by AskLurk</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
-<body class="{% if not user %}auth-body{% endif %}">
-    {% if not user %}
-    <!-- Authentication Screen -->
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="brand text-center mb-5">
-                <img src="{{ url_for('static', filename='Gemini_Generated_Image_8xh9yc8xh9yc8xh9.png') }}" alt="Pentad Logo" class="auth-logo">
-                <h1 class="display-4 fw-bold text-primary mb-3">Hi5</h1>
-                <p class="lead text-muted">Where logic, creativity, technicality, philosophy, and humor converge.</p>
-            </div>
-
-            <div class="oauth-box text-center">
-                <h4 class="mb-4">Get Started with Pentad</h4>
-                <div class="d-flex justify-content-center gap-4 mb-4 flex-wrap">
-                    <div class="oauth-provider">
-                        <a href="{{ url_for('google_login') }}" class="btn btn-outline-danger btn-lg oauth-btn">
-                            <img src="{{ url_for('static', filename='google-logo.png') }}" width="24" height="24" alt="Google">
-                            Sign in with Google
-                        </a>
-                    </div>
-                </div>
-                <p class="text-muted small">Secure authentication powered by OAuth 2.0</p>
-            </div>
-        </div>
-    </div>
-
-    {% else %}
-    <!-- Main Chat Application -->
+<body>
+    <!-- FLOATING TOGGLE (sidebar only) -->
     <button id="floating-toggle-btn" class="creative-float-btn" title="Toggle Sidebar">
         <i class="fas fa-bars"></i>
     </button>
 
+    <!-- WELCOME SCREEN -->
     <div id="welcome-screen" class="welcome-screen">
         <div class="welcome-card">
             <div class="brand">
                 <img src="{{ url_for('static', filename='Gemini_Generated_Image_8xh9yc8xh9yc8xh9.png') }}" alt="AI Chat Logo" class="logo">
                 <h1>Pentad</h1>
                 <p class="subtitle">Where logic, creativity, technicality, philosophy, and humor converge.</p>
-                <div class="user-welcome">
-                    <img src="{{ user.picture }}" alt="Profile" class="user-avatar-sm">
-                    <span>Welcome back, {{ user.name }}!</span>
-                </div>
             </div>
             <div class="input-group">
                 <textarea id="first-prompt" placeholder="Ask your first question..." autofocus></textarea>
@@ -67,7 +36,9 @@
         </div>
     </div>
 
+    <!-- MAIN CHAT APP -->
     <div id="chat-app" class="chat-app" style="display: none;">
+        <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2><i class="fas fa-history"></i>&nbsp;&nbsp;&nbsp;History</h2>
@@ -75,6 +46,8 @@
                     <input type="text" id="history-search" placeholder="Search history..." />
                     <i class="fas fa-search"></i>
                 </div>
+
+                <!-- ROW 1 : New chat | Full screen | Theme -->
                 <div class="sidebar-actions">
                     <button id="new-chat-btn" class="btn-new-chat icon" title="Start New Chat">
                         <i class="fas fa-plus"></i>
@@ -86,26 +59,19 @@
                         <i class="fas fa-moon"></i>
                     </button>
                 </div>
-                <div class="sidebar-actions">
-                    <div class="token-counter" id="token-counter">0 / 300k</div>
-                </div>
+
+                <!-- ROW 2 : Token usage - REMOVED SINCE WE REMOVED TOKEN TRACKING -->
             </div>
             <div id="history-list" class="history-list"></div>
-
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <img src="{{ user.picture }}" alt="Profile Picture" class="profile-pic">
-                    <span class="user-name">{{ user.name }}</span>
-                </div>
-                <a href="{{ url_for('logout') }}" class="logout-btn" title="Logout">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
-            </div>
         </div>
 
+        <!-- Main Chat Area -->
         <div class="main-area" id="main-area">
             <div class="chat-container" id="chat-container"></div>
+
+            <!-- FILE CHIPS BAR -->
             <div id="file-chips" class="file-chips"></div>
+
             <div class="input-bar">
                 <input type="file" id="file-input" multiple accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;">
                 <button id="attach-btn" class="attach-btn" title="Add file or picture"><i class="fas fa-paperclip"></i></button>
@@ -114,13 +80,8 @@
             </div>
         </div>
     </div>
-    {% endif %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        {% if user %}
-        // JavaScript code from your original template goes here
-        // (The same JavaScript you provided in your question)
         /* ---------- DOM ---------- */
         const welcomeScreen = document.getElementById('welcome-screen');
         const chatApp = document.getElementById('chat-app');
@@ -139,24 +100,15 @@
         const fileInput = document.getElementById('file-input');
         const attachBtn = document.getElementById('attach-btn');
         const fileChips = document.getElementById('file-chips');
+
         let chatHistory = [];
         let isSidebarOpen = true;
         let asklurkUsedThisTurn = false;
-        let selectedFiles = [];
+        let selectedFiles = []; // File[]
 
-        /* ---------- TOKEN COUNTER ---------- */
-        const tokenCounter = document.getElementById('token-counter');
-        let tokensUsed = 0;
+        /* ---------- TOKEN COUNTER - REMOVED SINCE WE REMOVED TOKEN TRACKING ---------- */
 
-        function formatTokens(n) {
-            return n < 1000 ? n : (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-        }
-
-        function updateTokenCounter() {
-            tokenCounter.textContent = `${formatTokens(tokensUsed)} / 300k`;
-        }
-
-        /* ---------- SIDEBAR TOGGLE ---------- */
+        /* ---------- CLEAN TOGGLE – only sidebar slides ---------- */
         function toggleSidebar() {
             isSidebarOpen = !isSidebarOpen;
             if (isSidebarOpen) {
@@ -169,12 +121,10 @@
                 floatingToggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
             }
         }
-
         floatingToggleBtn.addEventListener('click', toggleSidebar);
 
         /* ---------- FULLSCREEN ---------- */
         const fullscreenIcon = fullscreenBtn.querySelector('i');
-
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
@@ -184,13 +134,11 @@
                 document.exitFullscreen();
             }
         }
-
         function updateFullscreenIcon() {
             fullscreenIcon.className = document.fullscreenElement
                 ? 'fas fa-compress'
                 : 'fas fa-expand';
         }
-
         fullscreenBtn.addEventListener('click', toggleFullscreen);
         document.addEventListener('fullscreenchange', updateFullscreenIcon);
 
@@ -202,7 +150,6 @@
                 themeToggleBtn.querySelector('i').className = 'fas fa-sun';
             }
         }
-
         function toggleTheme() {
             const isLight = document.body.classList.toggle('light-theme');
             const icon = themeToggleBtn.querySelector('i');
@@ -214,7 +161,6 @@
                 localStorage.setItem('theme', 'dark');
             }
         }
-
         loadTheme();
         themeToggleBtn.addEventListener('click', toggleTheme);
 
@@ -225,7 +171,6 @@
                 item.style.display = item.title.toLowerCase().includes(q) ? 'flex' : 'none';
             });
         }
-
         document.getElementById('history-search').addEventListener('input', filterHistory);
 
         function addToHistory(prompt) {
@@ -233,10 +178,7 @@
             item.className = 'history-item';
             item.innerHTML = `<i class="fas fa-message"></i><span>${escapeHtml(prompt.length > 40 ? prompt.substring(0, 40) + '…' : prompt)}</span>`;
             item.title = prompt;
-            item.addEventListener('click', () => { 
-                promptInput.value = prompt; 
-                promptInput.focus(); 
-            });
+            item.addEventListener('click', () => { promptInput.value = prompt; promptInput.focus(); });
             historyList.prepend(item);
         }
 
@@ -247,7 +189,6 @@
             msg.innerHTML = `<div class="avatar">👤</div><div class="bubble">${escapeHtml(text)}</div>`;
             chatContainer.appendChild(msg);
         }
-
         function createResponseGroup() {
             const group = document.createElement('div');
             group.className = 'response-group';
@@ -281,7 +222,6 @@
                 </div>`;
             return group;
         }
-
         function escapeHtml(str) {
             const d = document.createElement('div');
             d.textContent = str;
@@ -300,7 +240,6 @@
             const btn = row.querySelector('button');
             btn.onclick = () => runAskLurkMerge(responseGroup, btn);
         }
-
         async function runAskLurkMerge(responseGroup, btn) {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Merging…';
@@ -311,25 +250,14 @@
                 philosophical: responseGroup.querySelector('.philosophical-response').textContent || '',
                 humorous: responseGroup.querySelector('.humorous-response').textContent || ''
             };
-
             try {
                 const res = await fetch('/asklurk', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        answers, 
-                        prompt: promptInput.value || firstPrompt.value 
-                    })
+                    body: JSON.stringify({ answers, prompt: promptInput.value })
                 });
-                
-                if (!res.ok) {
-                    if (res.status === 401) {
-                        throw new Error('Please login first');
-                    }
-                    throw new Error(`Network response was not ok: ${res.status} ${res.statusText}`);
-                }
+                if (!res.ok) throw new Error(`Network response was not ok: ${res.status} ${res.statusText}`);
                 const data = await res.json();
-                
                 if (data.best) {
                     const bestCard = document.createElement('div');
                     bestCard.className = 'ai-card asklurk-best';
@@ -341,20 +269,9 @@
                     bestRow.appendChild(bestCard);
                     btn.parentElement.after(bestRow);
                     smoothScrollToBottom();
-                    
-                    // Update token count
-                    if (data.tokens_used) {
-                        tokensUsed = data.tokens_used;
-                        updateTokenCounter();
-                    }
                 }
             } catch (err) {
                 console.error('AskLurk error', err);
-                if (err.message.includes('Please login')) {
-                    alert('Please login first');
-                    window.location.href = '/';
-                    return;
-                }
                 btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
                 setTimeout(() => {
                     btn.innerHTML = '<i class="fas fa-star"></i> AskLurk';
@@ -373,181 +290,216 @@
                 const isImage = file.type.startsWith('image/');
                 const isPDF = file.type === 'application/pdf';
                 chip.innerHTML = `
-                    <span class="file-name">${escapeHtml(file.name)}</span>
-                    <button class="remove-file" data-index="${idx}">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
+                    ${isImage ? `<img src="${URL.createObjectURL(file)}" class="chip-img" alt=""/>` : 
+                      isPDF ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-file"></i>'}
+                    <span>${file.name}</span>
+                    <i class="fas fa-times chip-remove" data-idx="${idx}"></i>`;
                 fileChips.appendChild(chip);
             });
+            fileChips.querySelectorAll('.chip-remove').forEach(icon => {
+                icon.onclick = (e) => {
+                    const idx = parseInt(e.currentTarget.dataset.idx);
+                    selectedFiles.splice(idx, 1);
+                    renderFileChips();
+                };
+            });
         }
 
-        function handleFileSelect(e) {
+        /* ---------- FILE UPLOAD ---------- */
+        attachBtn.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
             const files = Array.from(e.target.files);
-            files.forEach(file => {
-                if (file.size > 10 * 1024 * 1024) {
-                    alert(`File ${file.name} is too large (max 10MB)`);
-                    return;
-                }
-                selectedFiles.push(file);
-            });
+            selectedFiles.push(...files);
             renderFileChips();
             fileInput.value = '';
-        }
-
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            renderFileChips();
-        }
-
-        attachBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', handleFileSelect);
-        fileChips.addEventListener('click', (e) => {
-            if (e.target.closest('.remove-file')) {
-                const idx = parseInt(e.target.closest('.remove-file').dataset.index);
-                removeFile(idx);
+        };
+        async function uploadFiles() {
+            if (!selectedFiles.length) return [];
+            try {
+                const fd = new FormData();
+                selectedFiles.forEach(f => fd.append('files', f));
+                const res = await fetch('/upload', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                const data = await res.json();
+                return data.urls || [];
+            } catch (err) {
+                console.error('Upload error:', err);
+                return [];
             }
-        });
-
-        /* ---------- SCROLL ---------- */
-        function smoothScrollToBottom() {
-            chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
-                behavior: 'smooth'
-            });
         }
 
-        /* ---------- CHAT ---------- */
-        async function askQuestion(prompt) {
-            if (!prompt.trim()) return;
-            
-            // Show chat app if coming from welcome screen
-            if (welcomeScreen.style.display !== 'none') {
+        /* ---------- STREAMING ---------- */
+        async function streamResponses(prompt, responseGroup) {
+            asklurkUsedThisTurn = false;
+            const displays = {
+                logic: responseGroup.querySelector('.logic-response'),
+                creative: responseGroup.querySelector('.creative-response'),
+                technical: responseGroup.querySelector('.technical-response'),
+                philosophical: responseGroup.querySelector('.philosophical-response'),
+                humorous: responseGroup.querySelector('.humorous-response')
+            };
+            responseGroup.querySelectorAll('.thinking-container').forEach(el => el.style.display = 'block');
+            let buffers = {
+                logic: '', creative: '', technical: '', philosophical: '', humorous: ''
+            };
+            try {
+                const fileUrls = await uploadFiles();
+                const payload = { prompt, fileUrls };
+                console.log('Fetching /chat with payload:', payload);
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log('Response status:', res.status, res.statusText);
+                if (!res.ok) throw new Error(`Server responded ${res.status} ${res.statusText}`);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    const lines = buf.split('\n');
+                    buf = lines.pop();
+                    for (const ln of lines) {
+                        if (!ln.startsWith('data: ')) continue;
+                        try {
+                            const data = JSON.parse(ln.slice(6));
+                            const bot = data.bot;
+                            if (displays[bot]) {
+                                if (data.error) {
+                                    displays[bot].innerHTML = `<div class="error-banner">⚠️ ${data.error}</div>`;
+                                    responseGroup.querySelector(`.${bot}-thinking`).style.display = 'none';
+                                } else if (data.text) {
+                                    buffers[bot] += data.text;
+                                    displays[bot].textContent = buffers[bot];
+                                    responseGroup.querySelector(`.${bot}-thinking`).style.display = 'none';
+                                    smoothScrollToBottom();
+                                }
+                                // Token tracking removed - no longer updating tokensUsed
+                                if (data.done) {
+                                    // Bot finished processing
+                                    responseGroup.querySelector(`.${bot}-thinking`).style.display = 'none';
+                                }
+                            }
+                            if (data.all_done) {
+                                // All bots finished
+                                responseGroup.querySelectorAll('.thinking-container').forEach(el => el.style.display = 'none');
+                                if (!asklurkUsedThisTurn) showAskLurkButton(responseGroup);
+                                selectedFiles = [];
+                                renderFileChips();
+                            }
+                        } catch (parseError) {
+                            console.warn('Failed to parse SSE data:', ln, parseError);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Stream / upload error:', err);
+                responseGroup.querySelectorAll('.response-display').forEach(el => {
+                    el.innerHTML = `<div class="error-banner">⚠️ Failed to connect. ${err.message}</div>`;
+                });
+                responseGroup.querySelectorAll('.thinking-container').forEach(el => el.style.display = 'none');
+            }
+        }
+
+        /* ---------- HELPERS ---------- */
+        function smoothScrollToBottom() { 
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); 
+        }
+        function scrollToElement(el) { 
+            if (el && el.offsetTop) {
+                window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' });
+            }
+        }
+
+        /* ---------- CHAT FLOW ---------- */
+        async function startChat(prompt) {
+            if (!prompt?.trim() && !selectedFiles.length) return;
+            welcomeScreen.style.opacity = '0';
+            setTimeout(() => {
                 welcomeScreen.style.display = 'none';
                 chatApp.style.display = 'flex';
-            }
-
-            appendUserMessage(prompt);
+                setTimeout(() => chatApp.style.opacity = '1', 50);
+            }, 300);
             addToHistory(prompt);
-            
-            const responseGroup = createResponseGroup();
-            chatContainer.appendChild(responseGroup);
-            smoothScrollToBottom();
-            
-            const fileUrls = [];
-            if (selectedFiles.length > 0) {
-                const formData = new FormData();
-                selectedFiles.forEach(file => formData.append('files', file));
-                try {
-                    const res = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (data.urls) fileUrls.push(...data.urls);
-                } catch (err) {
-                    console.error('Upload failed', err);
-                }
-            }
-
-            asklurkUsedThisTurn = false;
-            const eventSource = new EventSource(`/chat?prompt=${encodeURIComponent(prompt)}&fileUrls=${JSON.stringify(fileUrls)}`);
-            
-            eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.all_done) {
-                        eventSource.close();
-                        showAskLurkButton(responseGroup);
-                        if (data.tokens) {
-                            tokensUsed = data.tokens;
-                            updateTokenCounter();
-                        }
-                        return;
-                    }
-                    
-                    if (data.error) {
-                        if (data.error.includes('Please login')) {
-                            alert('Please login first');
-                            window.location.href = '/';
-                            return;
-                        }
-                        console.error(`Error from ${data.bot}:`, data.error);
-                        const errorEl = responseGroup.querySelector(`.${data.bot}-response`);
-                        if (errorEl) {
-                            errorEl.innerHTML = `<div class="error-message">${escapeHtml(data.error)}</div>`;
-                        }
-                        return;
-                    }
-                    
-                    if (data.bot && data.text) {
-                        const responseEl = responseGroup.querySelector(`.${data.bot}-response`);
-                        const thinkingEl = responseGroup.querySelector(`.${data.bot}-thinking`);
-                        if (responseEl && thinkingEl) {
-                            thinkingEl.style.display = 'none';
-                            responseEl.style.display = 'block';
-                            responseEl.innerHTML += escapeHtml(data.text);
-                            smoothScrollToBottom();
-                        }
-                    }
-                    
-                    if (data.tokens) {
-                        tokensUsed = data.tokens;
-                        updateTokenCounter();
-                    }
-                    
-                } catch (err) {
-                    console.error('SSE parse error', err);
-                }
-            };
-            
-            eventSource.onerror = (err) => {
-                console.error('SSE error', err);
-                eventSource.close();
-            };
-            
+            appendUserMessage(prompt + (selectedFiles.length ? ` (+${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''})` : ''));
+            const group = createResponseGroup();
+            chatContainer.appendChild(group);
+            scrollToElement(group);
+            firstPrompt.value = '';
+            promptInput.focus();
+            await streamResponses(prompt, group);
+        }
+        async function handleAsk(prompt) {
+            if (!prompt?.trim() && !selectedFiles.length) return;
+            addToHistory(prompt);
+            appendUserMessage(prompt + (selectedFiles.length ? ` (+${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''})` : ''));
+            const group = createResponseGroup();
+            chatContainer.appendChild(group);
+            scrollToElement(group);
+            promptInput.value = '';
+            await streamResponses(prompt, group);
+        }
+        function startNewChat() {
+            chatContainer.innerHTML = '';
             selectedFiles = [];
             renderFileChips();
-            promptInput.value = '';
+            window.scrollTo(0, 0);
+            promptInput.focus();
+            chatContainer.style.opacity = '0.5';
+            setTimeout(() => chatApp.style.opacity = '1', 300);
+            document.getElementById('history-search').value = '';
+            filterHistory();
+            asklurkUsedThisTurn = false;
         }
 
-        function handleAsk() {
-            const prompt = promptInput.value.trim();
-            if (prompt) askQuestion(prompt);
-        }
-
-        function handleFirstAsk() {
-            const prompt = firstPrompt.value.trim();
-            if (prompt) askQuestion(prompt);
-        }
-
-        askBtn.addEventListener('click', handleAsk);
-        startBtn.addEventListener('click', handleFirstAsk);
-        promptInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleAsk();
-            }
-        });
+        /* ---------- BINDINGS ---------- */
+        startBtn.addEventListener('click', () => startChat(firstPrompt.value));
         firstPrompt.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleFirstAsk();
+                startChat(firstPrompt.value);
             }
         });
+        askBtn.addEventListener('click', () => handleAsk(promptInput.value));
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleAsk(promptInput.value);
+            }
+        });
+        newChatBtn.addEventListener('click', startNewChat);
 
-        newChatBtn.addEventListener('click', () => {
-            chatContainer.innerHTML = '';
-            promptInput.value = '';
-            selectedFiles = [];
-            renderFileChips();
+        /* ---------- INITIALIZATION ---------- */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize sidebar state
+            if (window.innerWidth < 768) {
+                // Auto-close sidebar on mobile
+                isSidebarOpen = false;
+                sidebar.classList.add('sidebar-closed');
+                mainArea.style.marginLeft = '0';
+                floatingToggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            }
+            
+            // Focus first prompt
+            firstPrompt.focus();
         });
 
-        // Initialize
-        updateTokenCounter();
-        {% endif %}
+        /* ---------- RESPONSIVE HANDLING ---------- */
+        function updateMobileToggle() {
+            if (window.innerWidth < 768) {
+                // Mobile: ensure sidebar is closed by default
+                if (isSidebarOpen) {
+                    toggleSidebar();
+                }
+            }
+        }
+        window.addEventListener('resize', updateMobileToggle);
     </script>
 </body>
-
 </html>
