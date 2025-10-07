@@ -21,8 +21,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "your-secret-key-here")
 CORS(app)
 
-# Initialize token encoding
-enc = tiktoken.get_encoding("cl100k_base")
 
 # Initialize OpenRouter API key
 KEY = os.getenv("OPENROUTER_API_KEY")
@@ -351,5 +349,6 @@ if __name__ == '__main__':
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
