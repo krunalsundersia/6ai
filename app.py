@@ -60,19 +60,6 @@ OPENROUTER_MODELS = {
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def extract_text_from_pdf(file_content):
-    """Extract text content from PDF file"""
-    try:
-        pdf_file = BytesIO(file_content)
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
-        return text.strip()
-    except Exception as e:
-        logger.error(f"Error extracting text from PDF: {str(e)}")
-        return None
-
 
 def generate(bot_name: str, system: str, user: str, file_contents: list = None):
     """Generate AI response for a specific bot using OpenRouter"""
@@ -349,6 +336,7 @@ if __name__ == '__main__':
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 
 
