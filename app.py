@@ -7,7 +7,6 @@ from flask import Flask, request, Response, jsonify, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
-import tiktoken
 from io import BytesIO
 
 # Load environment variables
@@ -352,4 +351,5 @@ if __name__ == '__main__':
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
 
