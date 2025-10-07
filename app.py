@@ -2,7 +2,6 @@ import os
 import json
 import logging
 import sys
-import uuid
 from flask import Flask, request, Response, jsonify, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -56,26 +55,16 @@ OPENROUTER_MODELS = {
     "asklurk": "deepseek/deepseek-chat-v3.1:free"
 }
 
-# Create uploads directory
-UPLOAD_FOLDER = 'static/uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-def generate(bot_name: str, system: str, user: str, file_contents: list = None):
+def generate(bot_name: str, system: str, user: str):
     """Generate AI response for a specific bot using OpenRouter"""
     client = None
     try:
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=KEY,
-            timeout=60.0  # Increased timeout for file processing
+            timeout=60.0
         )
-        
-        # Add file contents to the user prompt if available
-        full_user_prompt = user
-        if file_contents:
-            file_context = "\n\n".join(file_contents)
-            full_user_prompt = f"{user}\n\nAttached files content:\n{file_context}"
         
         model = OPENROUTER_MODELS.get(bot_name, "deepseek/deepseek-chat-v3.1:free")
         logger.info(f"Generating response for {bot_name} using model {model}")
@@ -88,10 +77,10 @@ def generate(bot_name: str, system: str, user: str, file_contents: list = None):
             model=model,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": full_user_prompt}
+                {"role": "user", "content": user}
             ],
             temperature=0.7,
-            max_tokens=1500,  # Increased for file context
+            max_tokens=1500,
             stream=True,
         )
         
@@ -179,7 +168,6 @@ Please provide the best synthesized answer that combines the strengths of all AI
             )
             
             best_answer = response.choices[0].message.content
-            
             return jsonify(best=best_answer)
             
         except Exception as e:
@@ -191,41 +179,6 @@ Please provide the best synthesized answer that combines the strengths of all AI
         
     except Exception as e:
         logger.error(f"AskLurk error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
-
-@app.route("/upload", methods=["POST"])
-def upload():
-    """Handle file uploads"""
-    try:
-        if 'files' not in request.files:
-            return jsonify(urls=[], error="No files provided"), 400
-        
-        files = request.files.getlist('files')
-        urls = []
-        
-        for file in files:
-            if file.filename == '':
-                continue
-            
-            allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.pdf', '.txt', '.doc', '.docx'}
-            ext = os.path.splitext(file.filename)[1].lower()
-            
-            if ext not in allowed_extensions:
-                continue
-                
-            name = f"{uuid.uuid4().hex}{ext}"
-            path = os.path.join(UPLOAD_FOLDER, name)
-            
-            try:
-                file.save(path)
-                urls.append(f"/static/uploads/{name}")
-            except Exception as e:
-                logger.error(f"Error saving file {file.filename}: {str(e)}")
-        
-        return jsonify(urls=urls)
-    
-    except Exception as e:
-        logger.error(f"Upload error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route("/")
@@ -247,19 +200,16 @@ def chat():
     try:
         data = request.json or {}
         prompt = data.get("prompt", "").strip()
-        fileUrls = data.get("fileUrls", [])
         
-        if not prompt and not fileUrls:
-            return jsonify(error="Empty prompt and no files provided"), 400
+        if not prompt:
+            return jsonify(error="Empty prompt provided"), 400
         
-      
         def event_stream():
             generators = {}
             for key in MODELS.keys():
-                generators[key] = generate(key, SYSTEM_PROMPTS[key], prompt, file_contents)
+                generators[key] = generate(key, SYSTEM_PROMPTS[key], prompt)
             
             active_bots = list(MODELS.keys())
-            completed_bots = set()
             
             while active_bots:
                 for bot_name in active_bots[:]:
@@ -270,18 +220,15 @@ def chat():
                         try:
                             chunk_data = json.loads(chunk.split('data: ')[1])
                             if chunk_data.get('done') or chunk_data.get('error'):
-                                completed_bots.add(bot_name)
                                 active_bots.remove(bot_name)
                         except:
                             pass
                             
                     except StopIteration:
-                        completed_bots.add(bot_name)
                         active_bots.remove(bot_name)
                     
                     except Exception as e:
                         logger.error(f"Error streaming for {bot_name}: {str(e)}")
-                        completed_bots.add(bot_name)
                         active_bots.remove(bot_name)
             
             yield f"data: {json.dumps({'all_done': True})}\n\n"
@@ -306,12 +253,6 @@ if __name__ == '__main__':
     print("Starting Pentad Chat Server...")
     print(f"OpenRouter API Key: {'✓ Configured' if KEY else '✗ Missing'}")
     print("Available models: Logic AI, Creative AI, Technical AI, Philosophical AI, Humorous AI, AskLurk")
-    print(f"PDF Support: ✓ Enabled with PyPDF2")
     print(f"Server running on http://localhost:{port}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
-
-
-
-
-
