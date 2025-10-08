@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .login-container {
+            border: 1px solid #ddd;
+            padding: 40px;
+            border-radius: 8px;
+        }
+        .google-btn {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .google-btn:hover {
+            background-color: #357ae8;
+        }
+        .test-btn {
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login to Application</h2>
+        
+        {% if google_configured %}
+        <a href="/auth/google">
+            <button class="google-btn">Sign in with Google</button>
+        </a>
+        <br>
+        {% else %}
+        <p style="color: orange;">Google OAuth not configured</p>
+        {% endif %}
+        
+        <a href="/test-login">
+            <button class="test-btn">Test Login (Development)</button>
+        </a>
+        
+        {% if request.args.get('error') %}
+        <p style="color: red;">Login failed. Please try again.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
