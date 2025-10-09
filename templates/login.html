@@ -58,6 +58,15 @@
             border-radius: 5px; 
             display: none; 
         }
+        .success { 
+            color: #155724; 
+            margin-top: 15px; 
+            padding: 10px; 
+            background: #d4edda; 
+            border: 1px solid #c3e6cb; 
+            border-radius: 5px; 
+            display: none; 
+        }
     </style>
 </head>
 <body>
@@ -76,6 +85,7 @@
         </button>
         
         <div id="loading" class="loading">Signing in...</div>
+        <div id="successMessage" class="success" style="display: none;">Login successful! Redirecting...</div>
         <div id="errorMessage" class="error"></div>
     </div>
 
@@ -95,34 +105,44 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
-        document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+        async function handleGoogleLogin() {
             const loading = document.getElementById('loading');
             const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
             
             try {
                 loading.style.display = 'block';
                 errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
                 
                 const provider = new firebase.auth.GoogleAuthProvider();
                 const result = await auth.signInWithPopup(provider);
+                const user = result.user;
                 
-                // Get the ID token
-                const idToken = await result.user.getIdToken();
-                
-                // Send token to Flask backend for verification
-                const response = await fetch('/auth/verify', {
+                // Send user data to Flask backend
+                const response = await fetch('/auth/success', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ idToken: idToken })
+                    body: JSON.stringify({
+                        user: {
+                            uid: user.uid,
+                            email: user.email,
+                            displayName: user.displayName,
+                            photoURL: user.photoURL
+                        }
+                    })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // Redirect to main app
-                    window.location.href = '/';
+                    successMessage.style.display = 'block';
+                    // Redirect to main app after successful login
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
                 } else {
                     throw new Error(data.error || 'Authentication failed');
                 }
@@ -131,27 +151,43 @@
                 console.error('Login error:', error);
                 errorMessage.textContent = error.message;
                 errorMessage.style.display = 'block';
+                
+                // Sign out from Firebase if backend auth failed
+                await auth.signOut();
             } finally {
                 loading.style.display = 'none';
             }
-        });
+        }
 
-        // Check if user is already logged in
+        document.getElementById('googleLoginBtn').addEventListener('click', handleGoogleLogin);
+
+        // Check if user is already logged in Firebase
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 try {
-                    const idToken = await user.getIdToken();
-                    const response = await fetch('/auth/verify', {
+                    // User is signed in Firebase, verify with backend
+                    const response = await fetch('/auth/success', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken: idToken })
+                        body: JSON.stringify({
+                            user: {
+                                uid: user.uid,
+                                email: user.email,
+                                displayName: user.displayName,
+                                photoURL: user.photoURL
+                            }
+                        })
                     });
                     
                     if (response.ok) {
                         window.location.href = '/';
+                    } else {
+                        // Backend session expired, sign out from Firebase
+                        await auth.signOut();
                     }
                 } catch (error) {
                     console.error('Auto-login failed:', error);
+                    await auth.signOut();
                 }
             }
         });
