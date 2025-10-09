@@ -41,27 +41,13 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Error initializing dependencies: {e}")
 
-# Firebase Admin SDK for backend verification (optional but recommended)
-try:
-    import firebase_admin
-    from firebase_admin import credentials, auth
-    
-    # Initialize Firebase Admin
-    cred = credentials.Certificate("firebase-service-account.json")  # You'll need to download this
-    firebase_admin.initialize_app(cred)
-    logger.info("Firebase Admin SDK initialized")
-except ImportError:
-    logger.warning("Firebase Admin SDK not installed - backend verification disabled")
-except Exception as e:
-    logger.warning(f"Firebase Admin initialization failed: {e}")
-
 def login_required(f):
     """Decorator to check if user is authenticated"""
     from functools import wraps
     
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if user is in session (basic check)
+        # Check if user is in session
         if 'user' not in session:
             return redirect('/login')
         return f(*args, **kwargs)
@@ -89,72 +75,36 @@ def login():
         logger.error(f"Error rendering login: {e}")
         return f"Error loading login page: {str(e)}", 500
 
-@app.route('/auth/verify', methods=['POST'])
-def verify_auth():
-    """Verify Firebase ID token and create session"""
+@app.route('/auth/success', methods=['POST'])
+def auth_success():
+    """Handle successful Firebase authentication from frontend"""
     try:
         data = request.get_json()
-        id_token = data.get('idToken')
+        user_data = data.get('user', {})
         
-        if not id_token:
-            return jsonify({"error": "No ID token provided"}), 400
+        if not user_data:
+            return jsonify({"error": "No user data provided"}), 400
         
-        # Verify the Firebase ID token
-        try:
-            decoded_token = auth.verify_id_token(id_token)
-            user_id = decoded_token['uid']
-            email = decoded_token.get('email', '')
-            name = decoded_token.get('name', '')
-            
-            # Store user info in session
-            session['user'] = {
-                'id': user_id,
-                'email': email,
-                'name': name,
-                'authenticated': True
-            }
-            
-            logger.info(f"User authenticated: {email}")
-            return jsonify({
-                "status": "success",
-                "message": "Authentication successful",
-                "user": session['user']
-            })
-            
-        except Exception as firebase_error:
-            logger.error(f"Firebase token verification failed: {firebase_error}")
-            return jsonify({"error": "Invalid authentication token"}), 401
-            
-    except Exception as e:
-        logger.error(f"Error verifying auth: {e}")
-        return jsonify({"error": "Authentication failed"}), 500
-
-@app.route('/auth/simple-login', methods=['POST'])
-def simple_login():
-    """Simple session-based login (fallback if Firebase Admin not setup)"""
-    try:
-        data = request.get_json()
-        user_email = data.get('email', 'user@example.com')
-        user_name = data.get('name', 'User')
-        
-        # Store basic user info in session
+        # Store user info in session (trusting the frontend for this demo)
+        # In production, you should verify the Firebase token on backend
         session['user'] = {
-            'id': str(uuid.uuid4()),
-            'email': user_email,
-            'name': user_name,
+            'id': user_data.get('uid', str(uuid.uuid4())),
+            'email': user_data.get('email', ''),
+            'name': user_data.get('displayName', 'User'),
+            'photo_url': user_data.get('photoURL', ''),
             'authenticated': True
         }
         
-        logger.info(f"User logged in (simple): {user_email}")
+        logger.info(f"User logged in: {session['user']['email']}")
         return jsonify({
             "status": "success",
-            "message": "Login successful",
+            "message": "Authentication successful",
             "user": session['user']
         })
-        
+            
     except Exception as e:
-        logger.error(f"Error in simple login: {e}")
-        return jsonify({"error": "Login failed"}), 500
+        logger.error(f"Error in auth success: {e}")
+        return jsonify({"error": "Authentication failed"}), 500
 
 @app.route('/logout')
 def logout():
