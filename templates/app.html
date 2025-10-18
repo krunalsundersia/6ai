@@ -19,8 +19,17 @@
                 <p class="subtitle">Your cute AI companion 🤖</p>
             </div>
             <div class="input-group">
+                <div class="file-upload-container">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="welcome-file-input" class="file-input" accept=".pdf,.txt,.jpg,.jpeg,.png,.doc,.docx" />
+                        <label for="welcome-file-input" class="file-input-label">
+                            <i class="fas fa-paperclip"></i>
+                        </label>
+                    </div>
+                </div>
+                <div id="welcome-selected-files" class="selected-files"></div>
                 <div class="input-container">
-                    <textarea id="first-prompt" placeholder="What's on your mind? 💭" autofocus></textarea>
+                    <textarea id="first-prompt" placeholder="What's on your mind? 💭 Or upload a file to discuss!" autofocus></textarea>
                 </div>
                 <button id="start-btn" class="cute-btn">
                     <i class="fas fa-sparkles"></i>
@@ -86,7 +95,7 @@
                     <div class="welcome-card-main">
                         <div class="welcome-robot">🤖</div>
                         <h3>Hello! I'm Neurobot!</h3>
-                        <p>I have two brains - one logical 🧠 and one creative 🎨. Ask me anything!</p>
+                        <p>I have two brains - one logical 🧠 and one creative 🎨. Ask me anything or upload files for me to analyze!</p>
                         <div class="welcome-features">
                             <div class="feature">
                                 <i class="fas fa-brain"></i>
@@ -95,6 +104,10 @@
                             <div class="feature">
                                 <i class="fas fa-palette"></i>
                                 <span>Creative Ideas</span>
+                            </div>
+                            <div class="feature">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF Analysis</span>
                             </div>
                             <div class="feature">
                                 <i class="fas fa-robot"></i>
@@ -106,8 +119,17 @@
             </div>
 
             <div class="input-bar">
+                <div class="file-upload-container">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file-input" class="file-input" accept=".pdf,.txt,.jpg,.jpeg,.png,.doc,.docx" />
+                        <label for="file-input" class="file-input-label">
+                            <i class="fas fa-paperclip"></i>
+                        </label>
+                    </div>
+                </div>
+                <div id="selected-files" class="selected-files"></div>
                 <div class="input-wrapper">
-                    <textarea id="prompt-input" placeholder="Type your message here... 💬" maxlength="1000"></textarea>
+                    <textarea id="prompt-input" placeholder="Type your message here... 💬 Or upload a file to discuss!" maxlength="1000"></textarea>
                     <button id="ask-btn" class="send-btn cute-send">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -134,15 +156,92 @@
         const sidebar = document.getElementById('sidebar');
         const mainArea = document.getElementById('main-area');
         const currentTime = document.getElementById('current-time');
+        const fileInput = document.getElementById('file-input');
+        const welcomeFileInput = document.getElementById('welcome-file-input');
+        const selectedFiles = document.getElementById('selected-files');
+        const welcomeSelectedFiles = document.getElementById('welcome-selected-files');
 
         // State
         let isSidebarOpen = true;
+        let currentFiles = [];
+        let welcomeFiles = [];
+
+        // File handling functions
+        function handleFileSelect(event, isWelcome = false) {
+            const files = Array.from(event.target.files);
+            const targetFiles = isWelcome ? welcomeFiles : currentFiles;
+            const targetContainer = isWelcome ? welcomeSelectedFiles : selectedFiles;
+            
+            files.forEach(file => {
+                if (!targetFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    targetFiles.push(file);
+                }
+            });
+            
+            updateFileDisplay(targetContainer, targetFiles);
+            event.target.value = '';
+        }
+
+        function updateFileDisplay(container, files) {
+            container.innerHTML = '';
+            files.forEach((file, index) => {
+                const filePill = document.createElement('div');
+                filePill.className = `file-pill ${getFileType(file)}`;
+                filePill.innerHTML = `
+                    <i class="fas ${getFileIcon(file)} file-icon"></i>
+                    <span class="file-name">${file.name}</span>
+                    <button class="file-pill-remove" onclick="removeFile(${index}, ${files === welcomeFiles})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(filePill);
+            });
+        }
+
+        function getFileType(file) {
+            if (file.type.includes('pdf')) return 'pdf';
+            if (file.type.includes('image')) return 'image';
+            if (file.type.includes('text')) return 'text';
+            if (file.type.includes('document') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) return 'document';
+            return 'other';
+        }
+
+        function getFileIcon(file) {
+            switch (getFileType(file)) {
+                case 'pdf': return 'fa-file-pdf';
+                case 'image': return 'fa-file-image';
+                case 'text': return 'fa-file-alt';
+                case 'document': return 'fa-file-word';
+                default: return 'fa-file';
+            }
+        }
+
+        function removeFile(index, isWelcome) {
+            const targetFiles = isWelcome ? welcomeFiles : currentFiles;
+            const targetContainer = isWelcome ? welcomeSelectedFiles : selectedFiles;
+            
+            targetFiles.splice(index, 1);
+            updateFileDisplay(targetContainer, targetFiles);
+        }
+
+        async function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateTime();
             setInterval(updateTime, 1000);
             updateSidebarToggleVisibility();
+            
+            // File input event listeners
+            fileInput.addEventListener('change', (e) => handleFileSelect(e, false));
+            welcomeFileInput.addEventListener('change', (e) => handleFileSelect(e, true));
         });
 
         function updateTime() {
@@ -221,12 +320,13 @@
             });
         }
 
-        function addToHistory(prompt) {
+        function addToHistory(prompt, hasFiles = false) {
             const item = document.createElement('div');
             item.className = 'history-item';
+            const fileIndicator = hasFiles ? ' 📎' : '';
             item.innerHTML = `
                 <i class="fas fa-comment"></i>
-                <span>${prompt.substring(0, 35)}${prompt.length > 35 ? '...' : ''}</span>
+                <span>${prompt.substring(0, 35)}${prompt.length > 35 ? '...' : ''}${fileIndicator}</span>
                 <small>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
             `;
             item.addEventListener('click', () => {
@@ -237,16 +337,26 @@
         }
 
         // Messages
-        function appendUserMessage(text) {
+        function appendUserMessage(text, files = []) {
             const welcomeMessage = document.querySelector('.welcome-message');
             if (welcomeMessage) welcomeMessage.remove();
             
             const msg = document.createElement('div');
             msg.className = 'message user-message';
+            
+            let fileIndicator = '';
+            if (files.length > 0) {
+                fileIndicator = `<div class="file-attachments">
+                    <i class="fas fa-paperclip"></i>
+                    ${files.length} file${files.length > 1 ? 's' : ''} attached
+                </div>`;
+            }
+            
             msg.innerHTML = `
                 <div class="avatar">👤</div>
                 <div class="message-content">
                     <div class="bubble">${escapeHtml(text)}</div>
+                    ${fileIndicator}
                     <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 </div>
             `;
@@ -304,65 +414,36 @@
             return div.innerHTML;
         }
 
-        // AskLurk
-        function showAskLurkButton(responseGroup) {
-            const row = document.createElement('div');
-            row.className = 'asklurk-row';
-            row.innerHTML = `
-                <button class="asklurk-btn">
-                    <i class="fas fa-robot"></i>
-                    Combine Answers ✨
-                </button>
-            `;
+        // Chat with files
+        async function sendChatWithFiles(prompt, files, isWelcome = false) {
+            const formData = new FormData();
+            formData.append('message', prompt);
             
-            responseGroup.appendChild(row);
-            const btn = row.querySelector('button');
-            btn.onclick = () => runAskLurkMerge(responseGroup, btn);
-        }
+            // Add files to FormData
+            files.forEach(file => {
+                formData.append('files', file);
+            });
 
-        async function runAskLurkMerge(responseGroup, btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Combining...';
-            
-            const logicText = responseGroup.querySelector('.logic-response').textContent;
-            const creativeText = responseGroup.querySelector('.creative-response').textContent;
-            
             try {
-                const res = await fetch('/asklurk', {
+                const response = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        answers: { logic: logicText, creative: creativeText },
-                        prompt: promptInput.value 
-                    })
+                    body: formData
                 });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.best) {
-                        const bestCard = document.createElement('div');
-                        bestCard.className = 'ai-card best-card';
-                        bestCard.innerHTML = `
-                            <div class="card-header">
-                                <div class="badge best-badge">
-                                    <i class="fas fa-star"></i>
-                                    Best Answer ⭐
-                                </div>
-                            </div>
-                            <div class="response">${escapeHtml(data.best)}</div>
-                        `;
-                        responseGroup.appendChild(bestCard);
-                        smoothScrollToBottom();
-                    }
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-            } catch (err) {
-                console.error('AskLurk error:', err);
-                btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Oops! Try again';
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error sending chat with files:', error);
+                throw error;
             }
         }
 
         // Streaming
-        async function streamResponses(prompt, responseGroup) {
+        async function streamResponses(prompt, responseGroup, files = []) {
             const logicResponse = responseGroup.querySelector('.logic-response');
             const creativeResponse = responseGroup.querySelector('.creative-response');
             const logicThinking = responseGroup.querySelector('.logic-thinking');
@@ -372,48 +453,51 @@
             let creativeText = '';
             
             try {
-                const res = await fetch('/chat', {
+                // Prepare request data
+                const requestData = {
+                    prompt: prompt,
+                    files: []
+                };
+
+                // Convert files to base64 if any
+                if (files.length > 0) {
+                    for (const file of files) {
+                        const base64Data = await readFileAsBase64(file);
+                        requestData.files.push({
+                            name: file.name,
+                            data: base64Data,
+                            type: file.type
+                        });
+                    }
+                }
+
+                const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
+                    body: JSON.stringify(requestData)
                 });
                 
                 if (!res.ok) throw new Error('Network error');
                 
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
+                const data = await res.json();
                 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                
-                                if (data.bot === 'logic' && data.text) {
-                                    logicText += data.text;
-                                    logicResponse.textContent = logicText;
-                                    logicThinking.style.display = 'none';
-                                }
-                                else if (data.bot === 'creative' && data.text) {
-                                    creativeText += data.text;
-                                    creativeResponse.textContent = creativeText;
-                                    creativeThinking.style.display = 'none';
-                                }
-                            } catch (e) {
-                                // Skip invalid JSON
-                            }
-                        }
-                    }
-                    smoothScrollToBottom();
+                // Display responses
+                if (data.logic_response) {
+                    logicResponse.textContent = data.logic_response;
+                    logicThinking.style.display = 'none';
                 }
                 
-                showAskLurkButton(responseGroup);
+                if (data.creative_response) {
+                    creativeResponse.textContent = data.creative_response;
+                    creativeThinking.style.display = 'none';
+                }
+                
+                if (data.file_processed) {
+                    logicResponse.innerHTML += '<div class="file-processed-indicator">📎 File content analyzed</div>';
+                    creativeResponse.innerHTML += '<div class="file-processed-indicator">📎 File content analyzed</div>';
+                }
+                
+                smoothScrollToBottom();
                 
             } catch (err) {
                 console.error('Stream error:', err);
@@ -431,7 +515,7 @@
 
         // Chat Flow
         async function startChat(prompt) {
-            if (!prompt.trim()) return;
+            if (!prompt.trim() && welcomeFiles.length === 0) return;
             
             welcomeScreen.style.opacity = '0';
             setTimeout(() => {
@@ -440,8 +524,9 @@
                 setTimeout(() => chatApp.style.opacity = '1', 50);
             }, 300);
             
-            addToHistory(prompt);
-            appendUserMessage(prompt);
+            const hasFiles = welcomeFiles.length > 0;
+            addToHistory(prompt || `File upload: ${welcomeFiles.map(f => f.name).join(', ')}`, hasFiles);
+            appendUserMessage(prompt || `Analyzing ${welcomeFiles.length} file(s)`, welcomeFiles);
             
             const group = createResponseGroup();
             chatContainer.appendChild(group);
@@ -449,21 +534,26 @@
             firstPrompt.value = '';
             promptInput.focus();
             
-            await streamResponses(prompt, group);
+            await streamResponses(prompt, group, welcomeFiles);
+            welcomeFiles = [];
+            updateFileDisplay(welcomeSelectedFiles, welcomeFiles);
         }
 
         async function handleAsk(prompt) {
-            if (!prompt.trim()) return;
+            if (!prompt.trim() && currentFiles.length === 0) return;
             
-            addToHistory(prompt);
-            appendUserMessage(prompt);
+            const hasFiles = currentFiles.length > 0;
+            addToHistory(prompt || `File upload: ${currentFiles.map(f => f.name).join(', ')}`, hasFiles);
+            appendUserMessage(prompt || `Analyzing ${currentFiles.length} file(s)`, currentFiles);
             
             const group = createResponseGroup();
             chatContainer.appendChild(group);
             
             promptInput.value = '';
             
-            await streamResponses(prompt, group);
+            await streamResponses(prompt, group, currentFiles);
+            currentFiles = [];
+            updateFileDisplay(selectedFiles, currentFiles);
         }
 
         function startNewChat() {
@@ -472,7 +562,7 @@
                     <div class="welcome-card-main">
                         <div class="welcome-robot">🤖</div>
                         <h3>Hello! I'm Neurobot!</h3>
-                        <p>I have two brains - one logical 🧠 and one creative 🎨. Ask me anything!</p>
+                        <p>I have two brains - one logical 🧠 and one creative 🎨. Ask me anything or upload files for me to analyze!</p>
                         <div class="welcome-features">
                             <div class="feature">
                                 <i class="fas fa-brain"></i>
@@ -483,6 +573,10 @@
                                 <span>Creative Ideas</span>
                             </div>
                             <div class="feature">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF Analysis</span>
+                            </div>
+                            <div class="feature">
                                 <i class="fas fa-robot"></i>
                                 <span>Always Learning</span>
                             </div>
@@ -491,6 +585,8 @@
                 </div>
             `;
             promptInput.focus();
+            currentFiles = [];
+            updateFileDisplay(selectedFiles, currentFiles);
         }
 
         // Event Listeners
@@ -518,6 +614,9 @@
         
         document.getElementById('history-search').addEventListener('input', filterHistory);
         document.addEventListener('fullscreenchange', updateFullscreenButton);
+
+        // Make functions globally available for file removal
+        window.removeFile = removeFile;
     </script>
 </body>
 </html>
