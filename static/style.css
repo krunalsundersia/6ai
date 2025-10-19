@@ -108,7 +108,38 @@ body {
     40% { transform: scale(1); opacity: 1; }
 }
 
-/* FILE UPLOAD - SIMPLE ICON BUTTON */
+/* Logo Styles */
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.app-logo {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px var(--glow));
+}
+
+.logo-text {
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--logic-color), var(--creative-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: pulseCute 3s ease-in-out infinite;
+}
+
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* File Upload Button - Simple Icon */
 .file-upload-btn {
     width: 45px;
     height: 45px;
@@ -140,11 +171,6 @@ body {
     height: 100%;
     opacity: 0;
     cursor: pointer;
-}
-
-/* Hide file upload on welcome page */
-.welcome-screen .file-upload-btn {
-    display: none;
 }
 
 /* Selected files display */
@@ -727,16 +753,6 @@ body {
     animation: pulseCute 2s infinite;
 }
 
-.app-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--accent);
-    background: linear-gradient(135deg, var(--logic-color), var(--creative-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: pulseCute 3s ease-in-out infinite;
-}
-
 .time-display {
     font-family: 'Courier New', monospace;
     color: var(--text-secondary);
@@ -1193,6 +1209,14 @@ body {
         height: 50px;
         font-size: 1.2rem;
     }
+    
+    .logo-text {
+        display: none;
+    }
+    
+    .app-logo {
+        height: 35px;
+    }
 }
 
 /* SCROLLBAR - CUTE STYLE */
@@ -1268,45 +1292,4 @@ body {
     border: 1px solid var(--border);
     box-shadow: var(--cute-shadow);
     z-index: 1000;
-}
-
-/* ASKLURK BUTTON */
-.asklurk-row {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-}
-
-.asklurk-btn {
-    background: linear-gradient(135deg, var(--logic-color), var(--creative-color));
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.asklurk-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    animation: gentleGlow 1s ease-in-out infinite;
-}
-
-.asklurk-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.best-card {
-    grid-column: 1 / -1;
-    margin-top: 20px;
-}
-
-.best-card::before {
-    background: linear-gradient(90deg, gold, orange) !important;
 }
