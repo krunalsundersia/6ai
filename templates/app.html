@@ -19,15 +19,8 @@
                 <p class="subtitle">Your cute AI companion 🤖</p>
             </div>
             <div class="input-group">
-                <div class="file-upload-container">
-                    <div class="file-upload-btn">
-                        <input type="file" id="welcome-file-input" class="file-input" accept=".pdf,.txt,.jpg,.jpeg,.png,.doc,.docx" />
-                        <i class="fas fa-paperclip"></i>
-                    </div>
-                </div>
-                <div id="welcome-selected-files" class="selected-files"></div>
                 <div class="input-container">
-                    <textarea id="first-prompt" placeholder="What's on your mind? 💭 Or upload a file to discuss!" autofocus></textarea>
+                    <textarea id="first-prompt" placeholder="What's on your mind? 💭 Start chatting with me!" autofocus></textarea>
                 </div>
                 <button id="start-btn" class="cute-btn">
                     <i class="fas fa-sparkles"></i>
@@ -83,6 +76,7 @@
                 <div class="header-center">
                     <div class="logo-container">
                         <img src="{{ url_for('static', filename='logo.png') }}" alt="NEUROBOT AI" class="app-logo">
+                        <span class="logo-text">NEUROBOT AI</span>
                     </div>
                 </div>
                 <div class="header-right">
@@ -155,28 +149,23 @@
         const mainArea = document.getElementById('main-area');
         const currentTime = document.getElementById('current-time');
         const fileInput = document.getElementById('file-input');
-        const welcomeFileInput = document.getElementById('welcome-file-input');
         const selectedFiles = document.getElementById('selected-files');
-        const welcomeSelectedFiles = document.getElementById('welcome-selected-files');
 
         // State
         let isSidebarOpen = true;
         let currentFiles = [];
-        let welcomeFiles = [];
 
         // File handling functions
-        function handleFileSelect(event, isWelcome = false) {
+        function handleFileSelect(event) {
             const files = Array.from(event.target.files);
-            const targetFiles = isWelcome ? welcomeFiles : currentFiles;
-            const targetContainer = isWelcome ? welcomeSelectedFiles : selectedFiles;
             
             files.forEach(file => {
-                if (!targetFiles.some(f => f.name === file.name && f.size === file.size)) {
-                    targetFiles.push(file);
+                if (!currentFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    currentFiles.push(file);
                 }
             });
             
-            updateFileDisplay(targetContainer, targetFiles);
+            updateFileDisplay(selectedFiles, currentFiles);
             event.target.value = '';
         }
 
@@ -188,7 +177,7 @@
                 filePill.innerHTML = `
                     <i class="fas ${getFileIcon(file)} file-icon"></i>
                     <span class="file-name">${file.name}</span>
-                    <button class="file-pill-remove" onclick="removeFile(${index}, ${files === welcomeFiles})">
+                    <button class="file-pill-remove" onclick="removeFile(${index})">
                         <i class="fas fa-times"></i>
                     </button>
                 `;
@@ -214,12 +203,9 @@
             }
         }
 
-        function removeFile(index, isWelcome) {
-            const targetFiles = isWelcome ? welcomeFiles : currentFiles;
-            const targetContainer = isWelcome ? welcomeSelectedFiles : selectedFiles;
-            
-            targetFiles.splice(index, 1);
-            updateFileDisplay(targetContainer, targetFiles);
+        function removeFile(index) {
+            currentFiles.splice(index, 1);
+            updateFileDisplay(selectedFiles, currentFiles);
         }
 
         async function readFileAsBase64(file) {
@@ -238,8 +224,7 @@
             updateSidebarToggleVisibility();
             
             // File input event listeners
-            fileInput.addEventListener('change', (e) => handleFileSelect(e, false));
-            welcomeFileInput.addEventListener('change', (e) => handleFileSelect(e, true));
+            fileInput.addEventListener('change', handleFileSelect);
         });
 
         function updateTime() {
@@ -412,34 +397,6 @@
             return div.innerHTML;
         }
 
-        // Chat with files
-        async function sendChatWithFiles(prompt, files, isWelcome = false) {
-            const formData = new FormData();
-            formData.append('message', prompt);
-            
-            // Add files to FormData
-            files.forEach(file => {
-                formData.append('files', file);
-            });
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Error sending chat with files:', error);
-                throw error;
-            }
-        }
-
         // Streaming
         async function streamResponses(prompt, responseGroup, files = []) {
             const logicResponse = responseGroup.querySelector('.logic-response');
@@ -513,7 +470,7 @@
 
         // Chat Flow
         async function startChat(prompt) {
-            if (!prompt.trim() && welcomeFiles.length === 0) return;
+            if (!prompt.trim()) return;
             
             welcomeScreen.style.opacity = '0';
             setTimeout(() => {
@@ -522,9 +479,8 @@
                 setTimeout(() => chatApp.style.opacity = '1', 50);
             }, 300);
             
-            const hasFiles = welcomeFiles.length > 0;
-            addToHistory(prompt || `File upload: ${welcomeFiles.map(f => f.name).join(', ')}`, hasFiles);
-            appendUserMessage(prompt || `Analyzing ${welcomeFiles.length} file(s)`, welcomeFiles);
+            addToHistory(prompt, false);
+            appendUserMessage(prompt, []);
             
             const group = createResponseGroup();
             chatContainer.appendChild(group);
@@ -532,9 +488,7 @@
             firstPrompt.value = '';
             promptInput.focus();
             
-            await streamResponses(prompt, group, welcomeFiles);
-            welcomeFiles = [];
-            updateFileDisplay(welcomeSelectedFiles, welcomeFiles);
+            await streamResponses(prompt, group, []);
         }
 
         async function handleAsk(prompt) {
