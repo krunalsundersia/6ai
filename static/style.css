@@ -122,6 +122,7 @@ body {
 }
 
 /* Custom Animated Button - Blue Theme */
+/* Custom Animated Button - Blue Theme */
 .btn-container {
   --btn-color: #00d4ff;
   --corner-color: #0002;
@@ -135,11 +136,13 @@ body {
   align-items: center;
   justify-content: center;
   margin-top: 20px;
+  width: 100%;
 }
 
 .btn {
   position: relative;
   min-width: 200px;
+  width: 100%;
   min-height: calc(var(--corner-dist) * 2);
   border-radius: 16px;
   border: none;
@@ -168,7 +171,8 @@ body {
   position: absolute;
   display: flex;
   justify-content: center;
-
+  align-items: center;
+  width: 100%;
   min-height: 32px;
   border-radius: 16px;
   border: none;
@@ -192,24 +196,21 @@ body {
     opacity calc(0.5 * var(--duration)) ease;
   filter: blur(2px);
   -webkit-filter: blur(2px);
+  left: 0;
+  right: 0;
 }
 
 .transition-top {
   top: 0;
-  left: 0;
   border-radius: 12px 12px 0 0;
-  align-items: start;
 }
 .transition-bottom {
   bottom: 0;
-  right: 0;
   border-radius: 0 0 12px 12px;
-  align-items: end;
 }
 
 .btn-text {
   display: inline-block;
-
   font-size: 1.25em;
   font-family: "Syne", "Poppins", "Inter", sans-serif;
   font-weight: 600;
@@ -282,7 +283,7 @@ body {
     -webkit-filter: drop-shadow(0 16px 16px #0002);
   }
   .transition-top {
-    transform: translateY(-24px) rotateZ(4deg);
+    transform: translateY(-32px) rotateZ(2deg);
     filter: blur(0px);
     -webkit-filter: blur(0px);
     animation: hue-anim 3s infinite linear;
@@ -290,7 +291,7 @@ body {
     opacity: 1;
   }
   .transition-bottom {
-    transform: translateY(24px) rotateZ(4deg);
+    transform: translateY(32px) rotateZ(-2deg);
     filter: blur(0px);
     -webkit-filter: blur(0px);
     animation: hue-anim 3s infinite linear;
@@ -451,7 +452,6 @@ body {
     -webkit-filter: hue-rotate(-70deg);
   }
 }
-
 /* Logo Styles */
 .logo-container {
     display: flex;
