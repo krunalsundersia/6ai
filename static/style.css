@@ -403,7 +403,7 @@ body {
     height: 40px;
     width: auto;
     object-fit: contain;
-    filter: drop-shadow(0 0 5px var(--glow));
+    
 }
 
 .logo-text {
@@ -710,7 +710,7 @@ body {
     border: 2px solid var(--border);
     background: var(--bg-primary);
     color: var(--text-secondary);
-    border-radius: 12px;
+    border-radius: 22px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -944,9 +944,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 25px;
+    padding: 5px 15px;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    
     min-height: 70px;
     animation: slideInCute 0.4s ease-out;
     position: relative;
@@ -963,24 +963,6 @@ body {
     animation: pulseCute 2s ease-in-out infinite;
 }
 
-.status {
-    font-size: 0.9rem;
-    color: var(--success);
-    font-weight: 600;
-    animation: gentleGlow 2s ease-in-out infinite;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.status::before {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--success);
-    animation: pulseCute 2s infinite;
-}
 
 .time-display {
     font-family: 'Courier New', monospace;
@@ -1297,9 +1279,9 @@ body {
 
 /* INPUT BAR - CUTE DESIGN */
 .input-bar {
-    padding: 20px 25px;
+    padding: 5px 15px;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
+    
     animation: slideInCute 0.4s ease-out;
     position: relative;
 }
