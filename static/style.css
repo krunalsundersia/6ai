@@ -392,7 +392,7 @@ body {
   }
 }
 
-/* Logo Styles - FIXED WELCOME PAGE LOGO SIZE */
+/* Logo Styles - FIXED SIZES */
 .logo-container {
     display: flex;
     align-items: center;
@@ -400,20 +400,21 @@ body {
     gap: 12px;
 }
 
-/* Regular app logo (for sidebar/header) */
+/* Regular app logo (for sidebar/header) - SMALL */
 .app-logo {
     height: 40px;
     width: auto;
     object-fit: contain;
 }
 
-/* Welcome page logo - LARGER SIZE */
+/* Welcome page logo - MEDIUM SIZE */
 .welcome-logo {
-    height: 80px; /* Increased from 40px to 80px */
-    width: auto;
+    height: 50px; /* Fixed to 50px as requested */
+    width: 50px;  /* Fixed square size */
     object-fit: contain;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     animation: gentleGlow 3s ease-in-out infinite;
+    border-radius: 12px; /* Added rounded corners for better appearance */
 }
 
 .logo-text {
@@ -1441,7 +1442,8 @@ body {
     
     /* Welcome logo responsive size */
     .welcome-logo {
-        height: 60px; /* Slightly smaller on mobile */
+        height: 45px; /* Slightly smaller on mobile */
+        width: 45px;
     }
     
     .btn {
