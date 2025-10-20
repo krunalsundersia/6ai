@@ -391,7 +391,8 @@ body {
     -webkit-filter: hue-rotate(-70deg);
   }
 }
-/* Logo Styles */
+
+/* Logo Styles - FIXED WELCOME PAGE LOGO SIZE */
 .logo-container {
     display: flex;
     align-items: center;
@@ -399,11 +400,20 @@ body {
     gap: 12px;
 }
 
+/* Regular app logo (for sidebar/header) */
 .app-logo {
     height: 40px;
     width: auto;
     object-fit: contain;
-    
+}
+
+/* Welcome page logo - LARGER SIZE */
+.welcome-logo {
+    height: 80px; /* Increased from 40px to 80px */
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 20px;
+    animation: gentleGlow 3s ease-in-out infinite;
 }
 
 .logo-text {
@@ -1429,8 +1439,9 @@ body {
         height: 35px;
     }
     
+    /* Welcome logo responsive size */
     .welcome-logo {
-        height: 60px;
+        height: 60px; /* Slightly smaller on mobile */
     }
     
     .btn {
@@ -1511,4 +1522,95 @@ body {
     border: 1px solid var(--border);
     box-shadow: var(--cute-shadow);
     z-index: 1000;
+}
+
+/* ANIMATIONS */
+@keyframes slideInCute {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes gentleGlow {
+    0%, 100% {
+        box-shadow: var(--cute-shadow);
+    }
+    50% {
+        box-shadow: 0 4px 25px var(--glow);
+    }
+}
+
+@keyframes pulseCute {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes cuteBounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-5px);
+    }
+    60% {
+        transform: translateY(-3px);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes typingAnimation {
+    0%, 60%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    30% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
